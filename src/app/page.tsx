@@ -56,32 +56,32 @@ export default function Dashboard() {
       {/* Real-time Compliance Stats */}
       <section className={styles.statsGrid}>
         <StatsCard 
-          title="Drive Remaining" 
+          label="Drive Remaining" 
           value="07:14" 
-          icon={<Timer size={22} />} 
-          variant="drive"
-          trend="-00:45 this shift"
+          icon={Timer} 
+          variant="status-drive"
+          tendency="-00:45 this shift"
         />
         <StatsCard 
-          title="Duty Remaining" 
+          label="Duty Remaining" 
           value="02:26" 
-          icon={<Activity size={22} />} 
-          variant="duty"
-          trend="Cycle ends in 2d"
+          icon={Activity} 
+          variant="status-duty"
+          tendency="Cycle ends in 2d"
         />
         <StatsCard 
-          title="Fuel Efficiency" 
+          label="Fuel Efficiency" 
           value="7.2 MPG" 
-          icon={<Fuel size={22} />} 
-          variant="off"
-          trend="+0.4 vs last trip"
+          icon={Fuel} 
+          variant="default"
+          tendency="+0.4 vs last trip"
         />
         <StatsCard 
-          title="Compliance Score" 
+          label="Compliance Score" 
           value="100%" 
-          icon={<ShieldCheck size={22} />} 
-          variant="drive"
-          trend="Certified"
+          icon={ShieldCheck} 
+          variant="status-drive"
+          tendency="Certified"
         />
       </section>
 

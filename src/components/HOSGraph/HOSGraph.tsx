@@ -56,7 +56,7 @@ export default function HOSGraph({ entries }: HOSGraphProps) {
   };
 
   const renderLogLines = () => {
-    const paths: JSX.Element[] = [];
+    const paths: React.ReactNode[] = [];
     // Sort entries by start time just in case
     const sortedEntries = [...entries].sort((a, b) => a.start - b.start);
 

@@ -34,42 +34,6 @@ export default function RootLayout({
             </section>
           </main>
         </div>
-
-        <style jsx global>{`
-          .layout {
-            display: flex;
-            min-height: 100vh;
-          }
-          .main-content {
-            flex: 1;
-            margin-left: 280px; /* Width of sidebar */
-            display: flex;
-            flex-direction: column;
-            transition: margin-left 0.3s ease;
-          }
-          .page-header {
-            height: 64px;
-            padding: 0 2rem;
-            display: flex;
-            align-items: center;
-            justify-content: space-between;
-            background: var(--background);
-            position: sticky;
-            top: 0;
-            z-index: 50;
-            border-bottom: 1px solid var(--border-muted);
-          }
-          .content-inner {
-            flex: 1;
-            padding: 2rem;
-          }
-
-          @media (max-width: 768px) {
-            .main-content {
-              margin-left: 0;
-            }
-          }
-        `}</style>
       </body>
     </html>
   );
