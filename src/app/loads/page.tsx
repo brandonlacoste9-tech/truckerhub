@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 import { 
   Package, 
   Search, 
@@ -9,11 +10,8 @@ import {
   MapPin, 
   Truck, 
   ArrowRight,
-  ShieldCheck,
-  FileText,
   DollarSign,
-  Clock,
-  ExternalLink
+  Clock
 } from 'lucide-react';
 import styles from './Loads.module.css';
 
@@ -32,6 +30,31 @@ const item = {
 
 export default function LoadsPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'market' | 'history'>('current');
+  const [loads, setLoads] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLoads = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('loads')
+          .select('*')
+          .order('pickup_time', { ascending: true });
+        
+        if (error) throw error;
+        setLoads(data || []);
+      } catch (err) {
+        console.error('Error fetching loads:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLoads();
+  }, []);
+
+  const activeLoads = loads.filter(l => l.status === 'available' || l.status === 'booked' || l.status === 'in-transit');
+  const historyLoads = loads.filter(l => l.status === 'delivered' || l.status === 'paid');
 
   return (
     <motion.div 
@@ -60,13 +83,13 @@ export default function LoadsPage() {
       {/* Tabs Layout */}
       <div className={styles.tabs}>
          <button onClick={() => setActiveTab('current')} className={activeTab === 'current' ? styles.activeTab : ''}>
-            Active Loads <span>2</span>
+            Active Loads <span>{activeLoads.length}</span>
          </button>
          <button onClick={() => setActiveTab('market')} className={activeTab === 'market' ? styles.activeTab : ''}>
             Load Board <span>48</span>
          </button>
          <button onClick={() => setActiveTab('history')} className={activeTab === 'history' ? styles.activeTab : ''}>
-            Completed <span>124</span>
+            Completed <span>{historyLoads.length}</span>
          </button>
       </div>
 
@@ -102,16 +125,23 @@ export default function LoadsPage() {
          <div className={styles.content}>
             {activeTab === 'current' && (
                <div className={styles.loadList}>
-                  {[
-                    { id: 'LH-9021', origin: 'Chicago, IL', dest: 'Phoenix, AZ', rate: '$4,200', date: 'Apr 06', type: 'Reefer', status: 'Assigned' },
-                    { id: 'LH-8842', origin: 'Gary, IN', dest: 'Lincoln, NE', rate: '$2,150', date: 'Apr 05', type: 'Flatbed', status: 'In Transit' }
-                  ].map((load) => (
+                  {loading ? (
+                    <div className={styles.emptyState} style={{ padding: '2rem' }}>
+                      <p>Loading active loads...</p>
+                    </div>
+                  ) : activeLoads.length === 0 ? (
+                    <div className={styles.emptyState}>
+                      <div className={styles.emptyIcon}><Package size={48} /></div>
+                      <h3>No Active Loads</h3>
+                      <p>You don&apos;t have any loads right now. Check the Load Board.</p>
+                    </div>
+                  ) : activeLoads.map((load) => (
                      <motion.div key={load.id} variants={item} className={`${styles.loadCard} glass`}>
                         <div className={styles.cardHeader}>
                            <div className={styles.idGroup}>
-                              <span className={styles.loadId}>{load.id}</span>
-                              <span className={`${styles.statusPill} ${load.status === 'In Transit' ? styles.statusTransit : styles.statusAssigned}`}>
-                                 {load.status}
+                              <span className={styles.loadId}>{load.id.substring(0, 8).toUpperCase()}</span>
+                              <span className={`${styles.statusPill} ${load.status === 'in-transit' ? styles.statusTransit : styles.statusAssigned}`}>
+                                 {load.status.replace('-', ' ').toUpperCase()}
                               </span>
                            </div>
                            <button className={styles.moreBtn}><MoreVertical size={16} /></button>
@@ -122,7 +152,7 @@ export default function LoadsPage() {
                               <MapPin size={14} className={styles.stopIcon} />
                               <div className={styles.stopInfo}>
                                  <span className={styles.stopLabel}>Pickup</span>
-                                 <span className={styles.stopCity}>{load.origin}</span>
+                                 <span className={styles.stopCity}>{load.origin_city}, {load.origin_state}</span>
                               </div>
                            </div>
                            <ArrowRight className={styles.routeArrow} size={18} />
@@ -130,7 +160,7 @@ export default function LoadsPage() {
                               <MapPin size={14} className={styles.stopIcon} />
                               <div className={styles.stopInfo}>
                                  <span className={styles.stopLabel}>Delivery</span>
-                                 <span className={styles.stopCity}>{load.dest}</span>
+                                 <span className={styles.stopCity}>{load.destination_city}, {load.destination_state}</span>
                               </div>
                            </div>
                         </div>
@@ -138,13 +168,13 @@ export default function LoadsPage() {
                         <div className={styles.cardFooter}>
                            <div className={styles.metaRow}>
                               <div className={styles.meta}>
-                                 <DollarSign size={14} /> <span>{load.rate}</span>
+                                 <DollarSign size={14} /> <span>${load.rate}</span>
                               </div>
                               <div className={styles.meta}>
-                                 <Truck size={14} /> <span>{load.type}</span>
+                                 <Truck size={14} /> <span>{load.weight} lbs</span>
                               </div>
                               <div className={styles.meta}>
-                                 <Clock size={14} /> <span>{load.date}</span>
+                                 <Clock size={14} /> <span>{new Date(load.pickup_time).toLocaleDateString()}</span>
                               </div>
                            </div>
                            <button className={styles.detailsBtn}>View Manifest</button>

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 import { 
   Download, 
   Plus, 
@@ -24,15 +25,6 @@ interface LogEntry {
   end: number;
 }
 
-const mockEntries: LogEntry[] = [
-  { status: 'OFF', start: 0, end: 8 },
-  { status: 'D', start: 8, end: 12 },
-  { status: 'ON', start: 12, end: 13 },
-  { status: 'D', start: 13, end: 17 },
-  { status: 'OFF', start: 17, end: 18 },
-  { status: 'SB', start: 18, end: 24 }
-];
-
 const container = {
   hidden: { opacity: 0 },
   show: {
@@ -44,6 +36,69 @@ const container = {
 export default function LogsPage() {
   const [activeStatus, setActiveStatus] = useState<Status>('OFF');
   const [region, setRegion] = useState<'USA' | 'CAN'>('USA');
+  const [logs, setLogs] = useState<any[]>([]);
+  const [graphEntries, setGraphEntries] = useState<LogEntry[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchLogs = async () => {
+      try {
+        // Fetch logs for today
+        const startOfDay = new Date();
+        startOfDay.setHours(0, 0, 0, 0);
+
+        const { data, error } = await supabase
+          .from('hos_logs')
+          .select('*')
+          .gte('start_time', startOfDay.toISOString())
+          .order('start_time', { ascending: true });
+
+        if (error) throw error;
+        
+        setLogs(data || []);
+
+        // Transform for graph
+        const entries: LogEntry[] = (data || []).map(log => {
+          const startDate = new Date(log.start_time);
+          const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+          let endHour = 24; // Default to end of day if still active
+          if (log.end_time) {
+            const endDate = new Date(log.end_time);
+            endHour = endDate.getHours() + endDate.getMinutes() / 60;
+          }
+          
+          let translatedStatus: Status = 'OFF';
+          if (log.status === 'SLEEP') translatedStatus = 'SB';
+          if (log.status === 'DRIVE') translatedStatus = 'D';
+          if (log.status === 'ON_DUTY') translatedStatus = 'ON';
+
+          return {
+            status: translatedStatus,
+            start: startHour,
+            end: endHour
+          };
+        });
+
+        // Set the active status to the most recent one
+        if (data && data.length > 0) {
+           const latest = data[data.length - 1];
+           let translatedStatus: Status = 'OFF';
+           if (latest.status === 'SLEEP') translatedStatus = 'SB';
+           if (latest.status === 'DRIVE') translatedStatus = 'D';
+           if (latest.status === 'ON_DUTY') translatedStatus = 'ON';
+           setActiveStatus(translatedStatus);
+        }
+
+        setGraphEntries(entries);
+      } catch (err) {
+        console.error('Error fetching logs:', err);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchLogs();
+  }, []);
 
   return (
     <motion.div 
@@ -95,7 +150,7 @@ export default function LogsPage() {
            </div>
         </div>
         
-        <HOSGraph entries={mockEntries} />
+        <HOSGraph entries={graphEntries} />
 
         <div className={styles.statusToggles}>
            {[
@@ -155,21 +210,20 @@ export default function LogsPage() {
              <button className={styles.viewHistory}>View All <ChevronRight size={14} /></button>
           </div>
           <div className={styles.eventTable}>
-             {[
-               { time: '11:59 PM', location: 'Clinton, OK', status: 'Sleeper', odometer: '234,451', remark: 'Arrived at truck stop' },
-               { time: '05:30 PM', location: 'Oklahoma City, OK', status: 'Off Duty', odometer: '234,312', remark: 'Dinner' },
-               { time: '01:00 PM', location: 'Tulsa, OK', status: 'Driving', odometer: '234,180', remark: '-' },
-               { time: '12:00 PM', location: 'Joplin, MO', status: 'On Duty', odometer: '234,180', remark: 'Inspection' },
-             ].map((row, idx) => (
+             {loading ? (
+                <div className={styles.tableRow} style={{ padding: '1rem', justifyContent: 'center' }}>Loading events...</div>
+             ) : logs.length === 0 ? (
+                <div className={styles.tableRow} style={{ padding: '1rem', justifyContent: 'center' }}>No events logged today.</div>
+             ) : logs.map((row, idx) => (
                 <div key={idx} className={styles.tableRow}>
-                   <div className={styles.rowTime}>{row.time}</div>
+                   <div className={styles.rowTime}>{new Date(row.start_time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
                    <div className={styles.rowStatus}>
-                     <div className={styles.statusDot} style={{ background: row.status === 'Driving' ? 'var(--status-drive)' : 'var(--status-off)' }} />
-                     {row.status}
+                     <div className={styles.statusDot} style={{ background: row.status === 'DRIVE' ? 'var(--status-drive)' : row.status === 'ON_DUTY' ? 'var(--status-duty)' : row.status === 'SLEEP' ? 'var(--status-sleep)' : 'var(--status-off)' }} />
+                     {row.status.replace('_', ' ')}
                    </div>
-                   <div className={styles.rowLocation}>{row.location}</div>
-                   <div className={styles.rowOdo}>{row.odometer}</div>
-                   <div className={styles.rowRemark}>{row.remark}</div>
+                   <div className={styles.rowLocation}>{row.location_name || 'Unknown'}</div>
+                   <div className={styles.rowOdo}>-</div>
+                   <div className={styles.rowRemark}>-</div>
                    <button className={styles.rowEdit}><MoreVertical size={14} /></button>
                 </div>
              ))}

@@ -1,7 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
+import { supabase } from '@/lib/supabase';
 import { 
   Fuel, 
   Map, 
@@ -31,6 +32,31 @@ const item = {
 
 export default function FuelPage() {
   const [unit, setUnit] = useState<'US' | 'CAN'>('US');
+  const [fuelEntries, setFuelEntries] = useState<any[]>([]);
+  const [totalCost, setTotalCost] = useState(0);
+
+  useEffect(() => {
+    const fetchFuel = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('fuel_entries')
+          .select('*')
+          .order('date', { ascending: false });
+        
+        if (error) throw error;
+        
+        const entries = data || [];
+        setFuelEntries(entries);
+        
+        const total = entries.reduce((acc, entry) => acc + Number(entry.cost), 0);
+        setTotalCost(total);
+      } catch (err) {
+        console.error('Error fetching fuel entries:', err);
+      }
+    };
+    
+    fetchFuel();
+  }, []);
 
   return (
     <motion.div 
@@ -70,8 +96,8 @@ export default function FuelPage() {
 
          <motion.div variants={item} className={`${styles.mainStat} glass`}>
             <div className={styles.statInfo}>
-               <span className={styles.statLabel}>Total Fuel Cost (MTD)</span>
-               <h2 className={styles.statValue}>$3,421.15</h2>
+               <span className={styles.statLabel}>Total Fuel Cost (All Time)</span>
+               <h2 className={styles.statValue}>${totalCost.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</h2>
                <div className={`${styles.statBadge} ${styles.statBad}`}>
                   <TrendingUp size={14} /> +12% price hike
                </div>
@@ -81,30 +107,28 @@ export default function FuelPage() {
       </div>
 
       <div className={styles.grid}>
-         {/* Trip History */}
+         {/* Fuel History */}
          <div className={`${styles.section} glass`}>
             <div className={styles.sectionHeader}>
                <div className={styles.sectionTitle}>
                   <Map size={18} className={styles.accentIcon} />
-                  <h3>Recent Trips</h3>
+                  <h3>Recent Fuel Entries</h3>
                </div>
                <button className={styles.viewMore}>History <ChevronRight size={14} /></button>
             </div>
             
             <div className={styles.tripList}>
-               {[
-                 { route: 'St. Louis to Tulsa', date: 'Apr 04', dist: '398 mi', time: '6h 15m' },
-                 { route: 'Chicago to St. Louis', date: 'Apr 03', dist: '297 mi', time: '4h 45m' },
-                 { route: 'Detroit to Chicago', date: 'Apr 02', dist: '282 mi', time: '4h 30m' },
-               ].map((trip, idx) => (
+               {fuelEntries.length === 0 ? (
+                  <div style={{ padding: '1rem', color: 'var(--text-dim)' }}>No fuel entries found.</div>
+               ) : fuelEntries.map((entry, idx) => (
                   <div key={idx} className={styles.tripItem}>
                      <div className={styles.tripDate}>
-                        <Calendar size={14} /> <span>{trip.date}</span>
+                        <Calendar size={14} /> <span>{new Date(entry.date).toLocaleDateString()}</span>
                      </div>
-                     <div className={styles.tripRoute}>{trip.route}</div>
+                     <div className={styles.tripRoute}>{entry.location_name}</div>
                      <div className={styles.tripMeta}>
-                        <span className={styles.tripDist}>{trip.dist}</span>
-                        <span className={styles.tripTime}>{trip.time}</span>
+                        <span className={styles.tripDist}>{entry.amount} {unit === 'US' ? 'gal' : 'L'}</span>
+                        <span className={styles.tripTime}>${entry.cost}</span>
                      </div>
                   </div>
                ))}
