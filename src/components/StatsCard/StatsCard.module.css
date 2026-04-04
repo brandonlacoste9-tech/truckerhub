@@ -1,0 +1,76 @@
+.card {
+  padding: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+  border-radius: var(--radius-lg);
+  position: relative;
+  overflow: hidden;
+  transition: all 0.2s ease;
+  min-width: 240px;
+}
+
+.card:hover {
+  border: 1px solid var(--border);
+  transform: translateY(-2px);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.iconContainer {
+  width: 32px;
+  height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--radius-sm);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.label {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--foreground-muted);
+}
+
+.body {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+}
+
+.value {
+  font-size: 1.75rem;
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.tendency {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: #2D6A4F;
+}
+
+.status {
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--foreground-muted);
+}
+
+/* Variants */
+.accent {
+  border-left: 3px solid var(--accent);
+}
+.status-drive {
+  border-left: 3px solid var(--status-drive);
+}
+.status-duty {
+  border-left: 3px solid var(--status-duty);
+}
+.status-sleep {
+  border-left: 3px solid var(--status-sleep);
+}

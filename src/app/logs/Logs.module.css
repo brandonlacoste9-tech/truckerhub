@@ -1,0 +1,325 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+}
+
+.badges {
+  display: flex;
+  gap: 1rem;
+  margin-top: 0.5rem;
+}
+
+.statusBadge {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem 0.75rem;
+  background: var(--surface);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  font-size: 0.8rem;
+  color: var(--foreground-muted);
+}
+
+.currentStatus strong {
+  color: var(--status-drive);
+}
+
+.pulse {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--status-drive);
+  box-shadow: 0 0 8px var(--status-drive);
+}
+
+.regionBtn {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.exportBtn, .addBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  border-radius: var(--radius-md);
+  font-weight: 600;
+  font-size: 0.875rem;
+  transition: all 0.2s ease;
+}
+
+.exportBtn {
+  background: var(--surface);
+  border: 1px solid var(--border-muted);
+  color: var(--foreground);
+}
+
+.addBtn {
+  background: var(--accent);
+  border: 1px solid var(--accent);
+  color: #fff;
+}
+
+.graphCard {
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.graphHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.graphMeta {
+  display: flex;
+  gap: 2rem;
+}
+
+.metaItem {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-size: 0.875rem;
+  color: var(--foreground-muted);
+}
+
+.metaIcon {
+  color: var(--accent);
+}
+
+.viewToggle {
+  display: flex;
+  background: var(--background);
+  padding: 0.25rem;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-muted);
+}
+
+.viewToggle button {
+  padding: 0.4rem 1rem;
+  font-size: 0.75rem;
+  font-weight: 700;
+  border-radius: var(--radius-sm);
+  color: var(--foreground-muted);
+}
+
+.activeView {
+  background: var(--surface);
+  color: var(--foreground) !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+}
+
+.statusToggles {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 1rem;
+}
+
+.toggleBtn {
+  padding: 1.25rem;
+  background: var(--background);
+  border: 1px solid var(--border-muted);
+  border-left-width: 4px;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+  text-align: left;
+  transition: all 0.2s ease;
+}
+
+.toggleLabel {
+  font-size: 0.875rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--foreground-muted);
+}
+
+.activeToggle {
+  background: var(--surface);
+  border-color: var(--border);
+  box-shadow: 0 8px 16px rgba(0,0,0,0.5);
+}
+
+.activeToggle .toggleLabel {
+  color: var(--foreground);
+}
+
+.lowerLayout {
+  display: grid;
+  grid-template-columns: 1fr 2fr;
+  gap: 1.5rem;
+}
+
+@media (max-width: 1024px) {
+  .lowerLayout {
+    grid-template-columns: 1fr;
+  }
+}
+
+.recapCard {
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sectionHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.5rem;
+}
+
+.sectionTitle {
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.recapList {
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.recapItem {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.recapLabel {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground-muted);
+  text-transform: uppercase;
+}
+
+.recapValues {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+}
+
+.recapBar {
+  flex: 1;
+  height: 6px;
+  background: var(--background);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.recapFill {
+  height: 100%;
+  border-radius: 3px;
+}
+
+.recapValue {
+  font-size: 0.875rem;
+  font-weight: 700;
+  min-width: 60px;
+  text-align: right;
+}
+
+.logDetails {
+  padding: 2rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  flex-direction: column;
+}
+
+.viewHistory {
+  color: var(--accent);
+  font-size: 0.875rem;
+  font-weight: 600;
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.eventTable {
+  display: flex;
+  flex-direction: column;
+}
+
+.tableRow {
+  display: grid;
+  grid-template-columns: 100px 120px 1fr 120px 1fr 40px;
+  align-items: center;
+  padding: 1rem 0;
+  border-bottom: 1px solid var(--border-muted);
+  font-size: 0.875rem;
+}
+
+.tableRow:last-child {
+  border-bottom: none;
+}
+
+.rowTime {
+  font-weight: 700;
+  color: var(--foreground);
+}
+
+.rowStatus {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  font-weight: 600;
+}
+
+.statusDot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+}
+
+.rowLocation {
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+.rowOdo {
+  color: var(--foreground-muted);
+  font-family: 'JetBrains Mono', monospace;
+}
+
+.rowRemark {
+  color: var(--foreground-muted);
+  font-style: italic;
+}
+
+.rowEdit {
+  color: var(--foreground-muted);
+}

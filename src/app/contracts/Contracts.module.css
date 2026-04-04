@@ -1,0 +1,185 @@
+.container {
+  max-width: 1400px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2rem;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+}
+
+.title {
+  font-size: 2.25rem;
+  font-weight: 800;
+  letter-spacing: -1.5px;
+}
+
+.subtitle {
+  color: var(--foreground-muted);
+  margin-top: 0.5rem;
+}
+
+.actions {
+  display: flex;
+  gap: 1rem;
+}
+
+.addBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--accent);
+  color: #fff;
+  border-radius: var(--radius-md);
+  font-weight: 700;
+  font-size: 0.875rem;
+}
+
+.searchBar {
+  display: flex;
+  gap: 1.5rem;
+}
+
+.inputWrapper {
+  position: relative;
+  flex: 1;
+}
+
+.searchIcon {
+  position: absolute;
+  left: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--foreground-muted);
+}
+
+.inputWrapper input {
+  width: 100%;
+  padding: 0.75rem 1rem 0.75rem 2.8rem;
+  background: var(--surface);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  outline: none;
+  color: var(--foreground);
+}
+
+.filterBtn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1.25rem;
+  background: var(--surface);
+  border: 1px solid var(--border-muted);
+  border-radius: var(--radius-md);
+  color: var(--foreground);
+  font-weight: 600;
+  font-size: 0.875rem;
+}
+
+.documentGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+  gap: 1.5rem;
+}
+
+.docCard {
+  padding: 1.5rem;
+  border-radius: var(--radius-lg);
+  display: flex;
+  gap: 1.5rem;
+  transition: transform 0.2s ease;
+}
+
+.docCard:hover {
+  transform: scale(1.02);
+}
+
+.docIcon {
+  width: 48px;
+  height: 48px;
+  background: var(--background);
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  border: 1px solid var(--border-muted);
+}
+
+.docContent {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.docTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.docId {
+  font-weight: 800;
+  font-size: 1.1rem;
+}
+
+.statusPill {
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.statusSuccess {
+  background: rgba(46, 196, 182, 0.15);
+  color: var(--status-drive);
+  border: 1px solid rgba(46, 196, 182, 0.2);
+}
+
+.statusProgress {
+  background: rgba(231, 29, 54, 0.15);
+  color: var(--status-off);
+  border: 1px solid rgba(231, 29, 54, 0.2);
+}
+
+.docType {
+  font-size: 0.875rem;
+  color: var(--foreground-muted);
+  font-weight: 500;
+}
+
+.docFooter {
+  margin-top: 1rem;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-top: 1rem;
+  border-top: 1px solid var(--border-muted);
+}
+
+.docDate {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--foreground-muted);
+}
+
+.docActions {
+  display: flex;
+  gap: 1rem;
+}
+
+.docActions button {
+  color: var(--foreground-muted);
+  transition: color 0.2s ease;
+}
+
+.docActions button:hover {
+  color: var(--accent);
+}
