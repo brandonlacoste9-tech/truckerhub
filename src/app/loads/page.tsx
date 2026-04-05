@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { getLoads } from '@/actions/data';
 import { 
   Package, 
   Search, 
@@ -28,21 +28,30 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
+type Load = {
+  id: string;
+  status: string;
+  origin_city: string;
+  origin_state: string;
+  destination_city: string;
+  destination_state: string;
+  pickup_time: Date | string;
+  delivery_time: Date | string;
+  weight: string;
+  rate: string;
+};
+
 export default function LoadsPage() {
   const [activeTab, setActiveTab] = useState<'current' | 'market' | 'history'>('current');
-  const [loads, setLoads] = useState<any[]>([]);
+  const [loads, setLoads] = useState<Load[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchLoads = async () => {
       try {
-        const { data, error } = await supabase
-          .from('loads')
-          .select('*')
-          .order('pickup_time', { ascending: true });
-        
-        if (error) throw error;
-        setLoads(data || []);
+        const { data, error } = await getLoads();
+        if (error) throw new Error(error);
+        setLoads((data as unknown as Load[]) || []);
       } catch (err) {
         console.error('Error fetching loads:', err);
       } finally {

@@ -2,17 +2,15 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { getLoads, getHosLogs } from '@/actions/data';
 import { 
   Truck, 
-  MapPin, 
   Timer, 
   Fuel, 
   ChevronRight, 
   Navigation, 
   ShieldCheck, 
-  Activity,
-  ArrowRight
+  Activity
 } from 'lucide-react';
 import StatsCard from '@/components/StatsCard/StatsCard';
 import styles from './Dashboard.module.css';
@@ -32,36 +30,102 @@ const item = {
   show: { opacity: 1, y: 0 }
 };
 
+type ActiveLoadType = {
+  id: string;
+  origin_city: string;
+  origin_state: string;
+  destination_city: string;
+  destination_state: string;
+  pickup_time: Date | string;
+  delivery_time: Date | string;
+  status: string;
+  weight: string | number;
+  rate: string | number;
+};
+
+type LogType = {
+  id: string;
+  start_time: Date | string;
+  end_time?: Date | string | null;
+  status: string;
+  location_name?: string | null;
+};
+
 export default function Dashboard() {
-  const [activeLoad, setActiveLoad] = useState<any>(null);
-  const [latestLogs, setLatestLogs] = useState<any[]>([]);
+  const [activeLoad, setActiveLoad] = useState<ActiveLoadType | null>(null);
+  const [latestLogs, setLatestLogs] = useState<LogType[]>([]);
   const [currentStatus, setCurrentStatus] = useState<string>('OFF');
+  const [driveRemaining, setDriveRemaining] = useState<string>('11:00');
+  const [dutyRemaining, setDutyRemaining] = useState<string>('14:00');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
         // Fetch active load
-        const { data: loadData } = await supabase
-          .from('loads')
-          .select('*')
-          .in('status', ['available', 'booked', 'in-transit'])
-          .order('pickup_time', { ascending: true })
-          .limit(1)
-          .single();
-        
-        if (loadData) setActiveLoad(loadData);
+        const { data: loadsData } = await getLoads();
+        const availableLoads = (loadsData as ActiveLoadType[] || []).filter(
+          l => ['available', 'booked', 'in-transit'].includes(l.status)
+        );
+        if (availableLoads.length > 0) {
+          // Find earliest pickup
+          availableLoads.sort((a, b) => new Date(a.pickup_time || 0).getTime() - new Date(b.pickup_time || 0).getTime());
+          setActiveLoad(availableLoads[0]);
+        }
 
         // Fetch recent logs
-        const { data: logsData } = await supabase
-          .from('hos_logs')
-          .select('*')
-          .order('start_time', { ascending: false })
-          .limit(3);
+        const { data: logsData } = await getHosLogs();
+        const logs = (logsData as unknown as LogType[]) || [];
+        if (logs.length > 0) {
+          setLatestLogs(logs.slice(0, 3));
+          setCurrentStatus(logs[0].status.replace('_', ' '));
 
-        if (logsData && logsData.length > 0) {
-          setLatestLogs(logsData);
-          setCurrentStatus(logsData[0].status.replace('_', ' '));
+          // Calculate hours
+          const startOfDay = new Date();
+          startOfDay.setHours(0, 0, 0, 0);
+          const todayLogs = logs.filter(
+            log => new Date(log.start_time).getTime() >= startOfDay.getTime()
+          );
+
+          let dHours = 0;
+          let onHours = 0;
+
+          todayLogs.forEach(log => {
+             let translatedStatus = 'OFF';
+             if (log.status === 'SLEEP') translatedStatus = 'SB';
+             if (log.status === 'DRIVE') translatedStatus = 'D';
+             if (log.status === 'ON_DUTY') translatedStatus = 'ON';
+
+             const startDate = new Date(log.start_time);
+             const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+             let endHour = 24; 
+             
+             if (log.end_time) {
+               const endDate = new Date(log.end_time);
+               endHour = endDate.getHours() + endDate.getMinutes() / 60;
+             } else {
+               const now = new Date();
+               if (now.getTime() >= startOfDay.getTime() && now.getDate() === startOfDay.getDate()) {
+                 endHour = now.getHours() + now.getMinutes() / 60;
+               }
+             }
+
+             const duration = endHour - startHour;
+             if (translatedStatus === 'D') dHours += duration;
+             if (translatedStatus === 'D' || translatedStatus === 'ON') onHours += duration;
+          });
+
+          // Convert remaining to HH:MM format
+          const remD = Math.max(0, 11 - dHours);
+          const remOn = Math.max(0, 14 - onHours);
+          
+          const formatTime = (h: number) => {
+            const hrs = Math.floor(h);
+            const mins = Math.floor((h - hrs) * 60);
+            return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
+          };
+          setDriveRemaining(formatTime(remD));
+          setDutyRemaining(formatTime(remOn));
         }
 
       } catch (err) {
@@ -100,17 +164,17 @@ export default function Dashboard() {
       <section className={styles.statsGrid}>
         <StatsCard 
           label="Drive Remaining" 
-          value="07:14" 
+          value={driveRemaining} 
           icon={Timer} 
           variant="status-drive"
-          tendency="-00:45 this shift"
+          tendency="Today"
         />
         <StatsCard 
           label="Duty Remaining" 
-          value="02:26" 
+          value={dutyRemaining} 
           icon={Activity} 
           variant="status-duty"
-          tendency="Cycle ends in 2d"
+          tendency="Today"
         />
         <StatsCard 
           label="Fuel Efficiency" 

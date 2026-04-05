@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { getFuelEntries, addFuelEntry } from '@/actions/data';
 import { 
   Fuel, 
   Map, 
@@ -30,33 +30,68 @@ const item = {
   show: { opacity: 1, scale: 1 }
 };
 
+type FuelEntryType = {
+  id: string;
+  date: Date | string;
+  amount: string;
+  cost: string;
+  odometer: string | null;
+  location_name: string | null;
+};
+
 export default function FuelPage() {
   const [unit, setUnit] = useState<'US' | 'CAN'>('US');
-  const [fuelEntries, setFuelEntries] = useState<any[]>([]);
+  const [fuelEntries, setFuelEntries] = useState<FuelEntryType[]>([]);
   const [totalCost, setTotalCost] = useState(0);
 
+  // Form State
+  const [amount, setAmount] = useState('');
+  const [odometer, setOdometer] = useState('');
+  const [locationName, setLocationName] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  const fetchFuel = async () => {
+    try {
+      const { data, error } = await getFuelEntries();
+      if (error) throw new Error(error);
+      
+      const entries = (data as unknown as FuelEntryType[]) || [];
+      setFuelEntries(entries);
+      
+      const total = entries.reduce((acc, entry) => acc + Number(entry.cost || 0), 0);
+      setTotalCost(total);
+    } catch (err) {
+      console.error('Error fetching fuel entries:', err);
+    }
+  };
+
   useEffect(() => {
-    const fetchFuel = async () => {
-      try {
-        const { data, error } = await supabase
-          .from('fuel_entries')
-          .select('*')
-          .order('date', { ascending: false });
-        
-        if (error) throw error;
-        
-        const entries = data || [];
-        setFuelEntries(entries);
-        
-        const total = entries.reduce((acc, entry) => acc + Number(entry.cost), 0);
-        setTotalCost(total);
-      } catch (err) {
-        console.error('Error fetching fuel entries:', err);
-      }
-    };
-    
     fetchFuel();
   }, []);
+
+  const handleAddFuel = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const { error } = await addFuelEntry({
+        driver_id: '123e4567-e89b-12d3-a456-426614174000',
+        amount,
+        odometer,
+        location_name: locationName
+      });
+      if (error) {
+        alert('Failed to log fuel entry: ' + error);
+      } else {
+        setAmount('');
+        setOdometer('');
+        setLocationName('');
+        await fetchFuel();
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsSubmitting(false);
+  };
 
   return (
     <motion.div 
@@ -144,21 +179,39 @@ export default function FuelPage() {
                </div>
             </div>
 
-            <form className={styles.quickForm}>
+            <form className={styles.quickForm} onSubmit={handleAddFuel}>
                <div className={styles.formRow}>
                   <div className={styles.inputGroup}>
                      <label>Amount ({unit === 'US' ? 'Gal' : 'L'})</label>
-                     <input type="number" placeholder="00.00" />
+                     <input 
+                       type="number" 
+                       placeholder="00.00" 
+                       value={amount}
+                       onChange={(e) => setAmount(e.target.value)}
+                       required
+                     />
                   </div>
                   <div className={styles.inputGroup}>
                      <label>Odometer</label>
-                     <input type="number" placeholder="234,451" />
+                     <input 
+                       type="number" 
+                       placeholder="234,451" 
+                       value={odometer}
+                       onChange={(e) => setOdometer(e.target.value)}
+                       required
+                     />
                   </div>
                </div>
                
                <div className={styles.inputGroup}>
                   <label>Service Station</label>
-                  <input type="text" placeholder="Pilot Flying J #234" />
+                  <input 
+                    type="text" 
+                    placeholder="Pilot Flying J #234" 
+                    value={locationName}
+                    onChange={(e) => setLocationName(e.target.value)}
+                    required
+                  />
                </div>
 
                <div className={styles.uploadArea}>
@@ -166,7 +219,9 @@ export default function FuelPage() {
                   <span>Drop fuel receipt here or click to upload</span>
                </div>
 
-               <button type="submit" className={styles.submitBtn}>Save Fuel Record</button>
+               <button type="submit" className={styles.submitBtn} disabled={isSubmitting}>
+                 {isSubmitting ? 'Saving...' : 'Save Fuel Record'}
+               </button>
             </form>
          </div>
       </div>

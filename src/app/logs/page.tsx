@@ -2,17 +2,17 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { supabase } from '@/lib/supabase';
+import { getHosLogs, addHosLog } from '@/actions/data';
+import { InferSelectModel } from 'drizzle-orm';
+import { hosLogs } from '@/db/schema';
 import { 
   Download, 
   Plus, 
   MapPin, 
-  Clock, 
-  FileText, 
   Calendar,
+  AlertCircle,
   MoreVertical,
-  CheckCircle2,
-  AlertCircle
+  X
 } from 'lucide-react';
 import HOSGraph from '@/components/HOSGraph/HOSGraph';
 import styles from './Logs.module.css';
@@ -36,69 +36,148 @@ const container = {
 export default function LogsPage() {
   const [activeStatus, setActiveStatus] = useState<Status>('OFF');
   const [region, setRegion] = useState<'USA' | 'CAN'>('USA');
-  const [logs, setLogs] = useState<any[]>([]);
+  const [logs, setLogs] = useState<InferSelectModel<typeof hosLogs>[]>([]);
   const [graphEntries, setGraphEntries] = useState<LogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchLogs = async () => {
-      try {
-        // Fetch logs for today
-        const startOfDay = new Date();
-        startOfDay.setHours(0, 0, 0, 0);
+  // Dynamic Recap State
+  const [driveHours, setDriveHours] = useState(0);
+  const [dutyHours, setDutyHours] = useState(0);
+  const [weeklyDutyHours, setWeeklyDutyHours] = useState(0);
+  const [currentLocation, setCurrentLocation] = useState('Unknown Location');
+  const [currentDateStr, setCurrentDateStr] = useState('');
 
-        const { data, error } = await supabase
-          .from('hos_logs')
-          .select('*')
-          .gte('start_time', startOfDay.toISOString())
-          .order('start_time', { ascending: true });
+  // Modal State
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [newLogStatus, setNewLogStatus] = useState<string>('ON_DUTY');
+  const [newLogTime, setNewLogTime] = useState<string>('');
+  const [newLogLocation, setNewLogLocation] = useState<string>('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-        if (error) throw error;
+  const fetchLogs = async () => {
+    try {
+      const { data, error } = await getHosLogs();
+      if (error) throw new Error(error);
+      
+      // Filter logs for today
+      const startOfDay = new Date();
+      startOfDay.setHours(0, 0, 0, 0);
+      
+      const filteredData = (data || []).filter(
+        log => new Date(log.start_time).getTime() >= startOfDay.getTime()
+      );
+      
+      setLogs(filteredData);
+
+      let dHours = 0;
+      let onHours = 0;
+
+      // Transform for graph
+      const entries: LogEntry[] = filteredData.map(log => {
+        const startDate = new Date(log.start_time);
+        const startHour = startDate.getHours() + startDate.getMinutes() / 60;
+        let endHour = 24; // Default to end of day if still active
         
-        setLogs(data || []);
-
-        // Transform for graph
-        const entries: LogEntry[] = (data || []).map(log => {
-          const startDate = new Date(log.start_time);
-          const startHour = startDate.getHours() + startDate.getMinutes() / 60;
-          let endHour = 24; // Default to end of day if still active
-          if (log.end_time) {
-            const endDate = new Date(log.end_time);
-            endHour = endDate.getHours() + endDate.getMinutes() / 60;
+        if (log.end_time) {
+          const endDate = new Date(log.end_time);
+          endHour = endDate.getHours() + endDate.getMinutes() / 60;
+        } else {
+          const now = new Date();
+          if (now.getTime() >= startOfDay.getTime() && now.getDate() === startOfDay.getDate()) {
+             endHour = now.getHours() + now.getMinutes() / 60;
           }
-          
-          let translatedStatus: Status = 'OFF';
-          if (log.status === 'SLEEP') translatedStatus = 'SB';
-          if (log.status === 'DRIVE') translatedStatus = 'D';
-          if (log.status === 'ON_DUTY') translatedStatus = 'ON';
-
-          return {
-            status: translatedStatus,
-            start: startHour,
-            end: endHour
-          };
-        });
-
-        // Set the active status to the most recent one
-        if (data && data.length > 0) {
-           const latest = data[data.length - 1];
-           let translatedStatus: Status = 'OFF';
-           if (latest.status === 'SLEEP') translatedStatus = 'SB';
-           if (latest.status === 'DRIVE') translatedStatus = 'D';
-           if (latest.status === 'ON_DUTY') translatedStatus = 'ON';
-           setActiveStatus(translatedStatus);
         }
+        
+        let translatedStatus: Status = 'OFF';
+        if (log.status === 'SLEEP') translatedStatus = 'SB';
+        if (log.status === 'DRIVE') translatedStatus = 'D';
+        if (log.status === 'ON_DUTY') translatedStatus = 'ON';
 
-        setGraphEntries(entries);
-      } catch (err) {
-        console.error('Error fetching logs:', err);
-      } finally {
-        setLoading(false);
+        const duration = endHour - startHour;
+        if (translatedStatus === 'D') dHours += duration;
+        if (translatedStatus === 'D' || translatedStatus === 'ON') onHours += duration;
+
+        return {
+          status: translatedStatus,
+          start: startHour,
+          end: endHour
+        };
+      });
+
+      setDriveHours(Number(dHours.toFixed(1)));
+      setDutyHours(Number(onHours.toFixed(1)));
+
+      // Rough weekly estimate (since we might only fetch today's in the component if we had an API limit, but data has all logs)
+      const last7Days = new Date();
+      last7Days.setDate(last7Days.getDate() - 7);
+      const weeklyLogs = (data || []).filter(
+        log => new Date(log.start_time).getTime() >= last7Days.getTime()
+      );
+      let wDuty = 0;
+      weeklyLogs.forEach(log => {
+        if (log.status === 'DRIVE' || log.status === 'ON_DUTY') {
+           const st = new Date(log.start_time).getTime();
+           const et = log.end_time ? new Date(log.end_time).getTime() : Date.now();
+           wDuty += (et - st) / (1000 * 60 * 60);
+        }
+      });
+      setWeeklyDutyHours(Number(wDuty.toFixed(1)));
+
+      // Set the active status to the most recent one
+      if (data && data.length > 0) {
+         const latest = data[0]; 
+         let translatedStatus: Status = 'OFF';
+         if (latest.status === 'SLEEP') translatedStatus = 'SB';
+         if (latest.status === 'DRIVE') translatedStatus = 'D';
+         if (latest.status === 'ON_DUTY') translatedStatus = 'ON';
+         setActiveStatus(translatedStatus);
+         if (latest.location_name) setCurrentLocation(latest.location_name);
       }
-    };
+
+      setGraphEntries(entries);
+    } catch (err) {
+      console.error('Error fetching logs:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // Current date/time simple format "YYYY-MM-DDThh:mm"
+    const now = new Date();
+    const tzOffset = now.getTimezoneOffset() * 60000; // offset in milliseconds
+    const localISOTime = (new Date(Date.now() - tzOffset)).toISOString().slice(0, -1);
+    setNewLogTime(localISOTime.substring(0, 16));
+
+    const options: Intl.DateTimeFormatOptions = { weekday: 'long', month: 'short', day: 'numeric', year: 'numeric' };
+    setCurrentDateStr(now.toLocaleDateString('en-US', options));
 
     fetchLogs();
   }, []);
+
+  const handleAddLog = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    try {
+      const { error } = await addHosLog({
+        // Generic driver ID until auth is complete
+        driver_id: '123e4567-e89b-12d3-a456-426614174000',
+        status: newLogStatus,
+        start_time: new Date(newLogTime).toISOString(),
+        location_name: newLogLocation
+      });
+      if (error) {
+        alert('Failed to log entry: ' + error);
+      } else {
+        setShowAddModal(false);
+        setNewLogLocation('');
+        await fetchLogs(); // refresh
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setIsSubmitting(false);
+  };
 
   return (
     <motion.div 
@@ -109,7 +188,7 @@ export default function LogsPage() {
     >
       <header className={styles.header}>
         <div className={styles.titleInfo}>
-          <h1 className={styles.title}>HOS Logs - Apr 04, 2026</h1>
+          <h1 className={styles.title}>HOS Logs - {currentDateStr.split(',').length > 1 ? currentDateStr.split(',').slice(1).join(',').trim() : currentDateStr || 'Today'}</h1>
           <div className={styles.badges}>
              <div className={`${styles.statusBadge} ${styles.currentStatus}`}>
                 <div className={styles.pulse} />
@@ -125,11 +204,82 @@ export default function LogsPage() {
            <button className={styles.exportBtn}>
              <Download size={16} /> Export Logs
            </button>
-           <button className={styles.addBtn}>
+           <button className={styles.addBtn} onClick={() => setShowAddModal(true)}>
              <Plus size={16} /> Log Entry
            </button>
         </div>
       </header>
+
+      {/* Add Log Modal */}
+      {showAddModal && (
+        <div className={styles.modalOverlay}>
+          <div className={`${styles.modal} glass`}>
+            <div className={styles.modalHeader}>
+              <h2 className={styles.modalTitle}>Add Record of Duty Status</h2>
+              <button 
+                className={styles.closeBtn} 
+                onClick={() => setShowAddModal(false)}
+              >
+                <X size={20} />
+              </button>
+            </div>
+            <form onSubmit={handleAddLog} className={styles.modalBody}>
+              <div className={styles.formGroup}>
+                <label>Duty Status</label>
+                <select 
+                  className={styles.input}
+                  value={newLogStatus}
+                  onChange={(e) => setNewLogStatus(e.target.value)}
+                >
+                  <option value="OFF">OFF DUTY</option>
+                  <option value="SLEEP">SLEEPER BERTH</option>
+                  <option value="DRIVE">DRIVING</option>
+                  <option value="ON_DUTY">ON DUTY (Not Driving)</option>
+                </select>
+              </div>
+              
+              <div className={styles.formGroup}>
+                <label>Time</label>
+                <input 
+                  type="datetime-local" 
+                  className={styles.input}
+                  value={newLogTime}
+                  onChange={(e) => setNewLogTime(e.target.value)}
+                  required
+                />
+              </div>
+
+              <div className={styles.formGroup}>
+                <label>Location</label>
+                <input 
+                  type="text" 
+                  className={styles.input}
+                  placeholder="e.g. St. Louis, MO"
+                  value={newLogLocation}
+                  onChange={(e) => setNewLogLocation(e.target.value)}
+                />
+              </div>
+
+              <div className={styles.modalFooter}>
+                <button 
+                  type="button" 
+                  className={styles.cancelBtn}
+                  onClick={() => setShowAddModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="submit" 
+                  className={styles.saveBtn}
+                  disabled={isSubmitting}
+                >
+                  {isSubmitting ? 'Saving...' : 'Save Entry'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Main Graph Card */}
       <div className={`${styles.graphCard} glass`}>
@@ -137,11 +287,11 @@ export default function LogsPage() {
            <div className={styles.graphMeta}>
              <div className={styles.metaItem}>
                <Calendar size={14} className={styles.metaIcon} />
-               <span>Saturday, Apr 4</span>
+               <span>{currentDateStr || 'Loading Date...'}</span>
              </div>
              <div className={styles.metaItem}>
                <MapPin size={14} className={styles.metaIcon} />
-               <span>St. Louis, MO to Oklahoma City, OK</span>
+               <span>{currentLocation}</span>
              </div>
            </div>
            <div className={styles.viewToggle}>
@@ -163,7 +313,7 @@ export default function LogsPage() {
                key={status.id} 
                className={`${styles.toggleBtn} ${activeStatus === status.id ? styles.activeToggle : ''}`}
                onClick={() => setActiveStatus(status.id as Status)}
-               style={{ borderLeftColor: status.color } as any}
+               style={{ borderLeftColor: status.color }}
              >
                <span className={styles.toggleLabel}>{status.label}</span>
              </button>
@@ -182,22 +332,22 @@ export default function LogsPage() {
              <div className={styles.recapItem}>
                 <div className={styles.recapLabel}>11-Hour Driving</div>
                 <div className={styles.recapValues}>
-                   <div className={styles.recapBar}><div className={styles.recapFill} style={{ width: '70%', background: 'var(--status-drive)' }} /></div>
-                   <span className={styles.recapValue}>7.6 / 11h</span>
+                   <div className={styles.recapBar}><div className={styles.recapFill} style={{ width: `${Math.min(100, (driveHours / 11) * 100)}%`, background: 'var(--status-drive)' }} /></div>
+                   <span className={styles.recapValue}>{driveHours} / 11h</span>
                 </div>
              </div>
              <div className={styles.recapItem}>
                 <div className={styles.recapLabel}>14-Hour On-Duty</div>
                 <div className={styles.recapValues}>
-                   <div className={styles.recapBar}><div className={styles.recapFill} style={{ width: '85%', background: 'var(--status-duty)' }} /></div>
-                   <span className={styles.recapValue}>11.9 / 14h</span>
+                   <div className={styles.recapBar}><div className={styles.recapFill} style={{ width: `${Math.min(100, (dutyHours / 14) * 100)}%`, background: 'var(--status-duty)' }} /></div>
+                   <span className={styles.recapValue}>{dutyHours} / 14h</span>
                 </div>
              </div>
              <div className={styles.recapItem}>
                 <div className={styles.recapLabel}>Weekly Cycle (70h)</div>
                 <div className={styles.recapValues}>
-                   <div className={styles.recapBar}><div className={styles.recapFill} style={{ width: '25%', background: 'var(--accent)' }} /></div>
-                   <span className={styles.recapValue}>18.4 / 70h</span>
+                   <div className={styles.recapBar}><div className={styles.recapFill} style={{ width: `${Math.min(100, (weeklyDutyHours / 70) * 100)}%`, background: 'var(--accent)' }} /></div>
+                   <span className={styles.recapValue}>{weeklyDutyHours} / 70h</span>
                 </div>
              </div>
           </div>
